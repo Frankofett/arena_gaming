@@ -1,7 +1,25 @@
 const API = '../api';
 
-// Cargar datos al abrir la página
-document.addEventListener('DOMContentLoaded', cargarDashboard);
+async function verificarSesion() {
+  const res = await fetch(`${API}/verificar_sesion.php`);
+  if (!res.ok) {
+    window.location.href = 'login.html';
+    return null;
+  }
+  return (await res.json()).usuario;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const usuario = await verificarSesion();
+  if (!usuario) return;
+
+  // Mostrar nombre del usuario en la barra
+  const span = document.querySelector('.navbar .text-white');
+  if (span) span.innerHTML = `<i class="bi bi-person-circle"></i> ${usuario.username} (${usuario.rol})`;
+
+  // Cargar el dashboard
+  cargarDashboard();
+});
 
 async function cargarDashboard() {
   try {
