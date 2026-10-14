@@ -56,4 +56,83 @@ function pintarTabla(productos) {
     `;
     tbody.appendChild(tr);
   });
+  // ============ CATEGORÍAS ============
+
+async function cargarCategorias() {
+  const select = document.getElementById('input-categoria');
+  select.innerHTML = '<option value="">Cargando...</option>';
+
+  try {
+    const res = await fetch(`${API}/categorias_listar.php`);
+    const json = await res.json();
+
+    if (!json.ok) {
+      select.innerHTML = '<option value="">Error al cargar</option>';
+      return;
+    }
+
+    select.innerHTML = '<option value="">-- Selecciona --</option>';
+    json.data.forEach(c => {
+      select.innerHTML += `<option value="${c.id_categoria}">${c.nombre_categoria}</option>`;
+    });
+
+  } catch (err) {
+    select.innerHTML = '<option value="">Error de conexión</option>';
+  }
+}
+
+// ============ MODAL DE PRODUCTO ============
+
+function abrirModalNuevo() {
+  // Limpiar formulario
+  document.getElementById('formProducto').reset();
+  document.getElementById('input-id').value = '';
+
+  // Título
+  document.getElementById('modal-titulo').textContent = 'Nuevo producto';
+
+  // Llenar categorías
+  cargarCategorias();
+
+  // Abrir modal
+  const modal = new bootstrap.Modal(document.getElementById('modalProducto'));
+  modal.show();
+}
+
+// ============ GUARDAR PRODUCTO ============
+
+document.getElementById('formProducto').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const form = e.target;
+  const formData = new FormData(form);
+
+  try {
+    const res = await fetch(`${API}/productos_guardar.php`, {
+      method: 'POST',
+      body: formData
+    });
+    const json = await res.json();
+
+    if (!json.ok) {
+      alert('Error: ' + json.error);
+      return;
+    }
+
+    // Cerrar modal
+    const modalEl = document.getElementById('modalProducto');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    modal.hide();
+
+    // Recargar tabla
+    listar();
+
+  } catch (err) {
+    alert('Error de conexión: ' + err.message);
+  }
+});
+
+// ============ CONECTAR BOTÓN NUEVO ============
+
+document.getElementById('btn-nuevo').addEventListener('click', abrirModalNuevo);
 }
