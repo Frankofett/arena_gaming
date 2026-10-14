@@ -1,5 +1,5 @@
 const API = '../api';
-
+let productosCache = [];
 
 document.addEventListener('DOMContentLoaded', listar);
 
@@ -24,6 +24,8 @@ async function listar() {
 }
 
 function pintarTabla(productos) {
+  productosCache = productos;
+
   const tbody = document.getElementById('tabla-productos');
   tbody.innerHTML = '';
 
@@ -46,17 +48,24 @@ function pintarTabla(productos) {
       <td>${p.stock}</td>
       <td>${estadoBadge}</td>
       <td class="text-end">
-        <button class="btn btn-sm btn-warning" data-id="${p.id_producto}">
+        <button class="btn btn-sm btn-warning btn-editar" data-id="${p.id_producto}">
           <i class="bi bi-pencil"></i>
         </button>
-        <button class="btn btn-sm btn-danger" data-id="${p.id_producto}">
+        <button class="btn btn-sm btn-danger btn-eliminar" data-id="${p.id_producto}">
           <i class="bi bi-x-lg"></i>
         </button>
       </td>
     `;
+
+    // Listeners DESPUÉS del innerHTML
+    tr.querySelector('.btn-editar').addEventListener('click', () => abrirModalEditar(parseInt(p.id_producto)));
+    tr.querySelector('.btn-eliminar').addEventListener('click', () => confirmarEliminar(parseInt(p.id_producto)));
+
     tbody.appendChild(tr);
   });
-  // ============ CATEGORÍAS ============
+}
+
+// ============ CATEGORÍAS ============
 
 async function cargarCategorias() {
   const select = document.getElementById('input-categoria');
@@ -84,17 +93,29 @@ async function cargarCategorias() {
 // ============ MODAL DE PRODUCTO ============
 
 function abrirModalNuevo() {
-  // Limpiar formulario
   document.getElementById('formProducto').reset();
   document.getElementById('input-id').value = '';
-
-  // Título
   document.getElementById('modal-titulo').textContent = 'Nuevo producto';
 
-  // Llenar categorías
   cargarCategorias();
 
-  // Abrir modal
+  const modal = new bootstrap.Modal(document.getElementById('modalProducto'));
+  modal.show();
+}
+
+function abrirModalEditar(id) {
+  const producto = productosCache.find(p => parseInt(p.id_producto) === id);
+  if (!producto) return;
+
+  document.getElementById('input-id').value = producto.id_producto;
+  document.getElementById('input-nombre').value = producto.nombre_producto;
+  document.getElementById('input-precio').value = producto.precio;
+  document.getElementById('modal-titulo').textContent = 'Editar producto';
+
+  cargarCategorias().then(() => {
+    document.getElementById('input-categoria').value = producto.id_categoria;
+  });
+
   const modal = new bootstrap.Modal(document.getElementById('modalProducto'));
   modal.show();
 }
@@ -119,12 +140,10 @@ document.getElementById('formProducto').addEventListener('submit', async (e) => 
       return;
     }
 
-    // Cerrar modal
     const modalEl = document.getElementById('modalProducto');
     const modal = bootstrap.Modal.getInstance(modalEl);
     modal.hide();
 
-    // Recargar tabla
     listar();
 
   } catch (err) {
@@ -132,7 +151,41 @@ document.getElementById('formProducto').addEventListener('submit', async (e) => 
   }
 });
 
+// ============ ELIMINAR (placeholder) ============
+
+async function confirmarEliminar(id) {
+  // Buscar el producto para mostrar su nombre en el confirm
+  const producto = productosCache.find(p => parseInt(p.id_producto) === id);
+  const nombre = producto ? producto.nombre_producto : 'este producto';
+
+  // Pedir confirmación
+  if (!confirm(`¿Desactivar "${nombre}"?\n\nNo se borra de la base de datos, solo se oculta de la lista.`)) {
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('id_producto', id);
+
+    const res = await fetch(`${API}/productos_eliminar.php`, {
+      method: 'POST',
+      body: formData
+    });
+    const json = await res.json();
+
+    if (!json.ok) {
+      alert('Error: ' + json.error);
+      return;
+    }
+
+    // Recargar tabla
+    listar();
+
+  } catch (err) {
+    alert('Error de conexión: ' + err.message);
+  }
+}
+
 // ============ CONECTAR BOTÓN NUEVO ============
 
 document.getElementById('btn-nuevo').addEventListener('click', abrirModalNuevo);
-}
